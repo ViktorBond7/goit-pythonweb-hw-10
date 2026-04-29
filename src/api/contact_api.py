@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from src.schemas.contact import ContactResponse, ContactRequest, ContactUpdateRequest
-from src.db.sesion import open_session
+from src.db.session import open_session
 from src.services import contact_service
 
 router = APIRouter()

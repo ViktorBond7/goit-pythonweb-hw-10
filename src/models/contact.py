@@ -1,7 +1,7 @@
 from src.db.base import Base
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import date
-from sqlalchemy import String, Integer, Date
+from sqlalchemy import Date
 
 
 class Contact(Base):
