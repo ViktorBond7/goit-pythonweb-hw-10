@@ -1,8 +1,12 @@
-from src.db.base import Base
-from sqlalchemy.orm import Mapped, mapped_column
-from datetime import date
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String
 
+# from src.models.contact import Contact
+from src.db.base import Base
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.models.contact import Contact
 
 
 
@@ -10,9 +14,15 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    password: Mapped[str] = mapped_column( nullable=False)
-    
+    username: Mapped[str] = mapped_column(String(30), nullable=False)
+    email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
+    avatar: Mapped[str] = mapped_column(String, nullable=True)
+
+    contacts: Mapped[list["Contact"]] = relationship(
+        "Contact", back_populates="user", cascade="all, delete-orphan"
+    )
+   
 
     def __repr__(self) -> str:
-        return f"User(id={self.id!r}, email={self.email!r})"
+        return f"User(id={self.id!r}, username={self.username!r}, email={self.email!r})"

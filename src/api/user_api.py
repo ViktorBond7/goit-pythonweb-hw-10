@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from src.models.user import User
-from src.schemas.user import TokenModel, UserRead, UserCreate, UserResponse, UserResponse
+from src.schemas.user import TokenModel, UserRead, UserCreate
 from src.db.session import open_session
-from src.services import contact_service
-from src.services.auth import Hash, create_access_token, get_current_user
+from src.services import user_service
+from src.services.auth import Hash, create_access_token, create_refresh_token, get_current_user, verify_refresh_token
 
 
 
@@ -13,35 +13,27 @@ router = APIRouter()
 
 @router.post("/register", response_model=UserRead)
 async def register_user(user: UserCreate, db: Session = Depends(open_session)):
-    
-    existing_user = db.query(User).filter(User.email == user.email).first()
-    if existing_user:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-    
-  
-    new_user = User(
-        email=user.email,
-        password=Hash().get_password_hash(user.password)
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return UserRead.model_validate(new_user)
+    create_user = await user_service.create_user(db, user)
+    return UserRead.model_validate(create_user)
 
-
+   
 @router.post("/login", response_model=TokenModel)
 async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(open_session)):
-    db_user = db.query(User).filter(User.email == form_data.username).first()
-    if not db_user or not Hash().verify_password(form_data.password, db_user.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
-    
-    access_token = await create_access_token(data={"sub": db_user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
-    # return {"message": "Login successful"}
+    return await user_service.authenticate_user(db, form_data)
+ 
+   
 
 
-@router.get("/me", response_model=UserResponse)
+
+@router.get("/me", response_model=UserRead)
 async def read_current_user(current_user: User = Depends(get_current_user)):
     
-    return UserResponse.model_validate(current_user)
+    return UserRead.model_validate(current_user)
+
+
+
+@router.post("/refresh", response_model=TokenModel)
+async def refresh_access_token(refresh_token: str = Form(...), db: Session = Depends(open_session)):
+    return await user_service.refresh_token_service(refresh_token)
+
+

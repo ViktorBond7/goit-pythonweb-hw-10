@@ -1,24 +1,28 @@
-from sqlalchemy.orm import Session
+# from sqlalchemy.orm import Session
 from src.models.contact import Contact
 from src.repositories import contact_repo
 from fastapi import HTTPException, status
 from src.schemas.contact import ContactRequest, ContactUpdateRequest
 from datetime import date, timedelta
+from src.models.user import User
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def get_all_contacts(
-    session: Session,
+async def get_all_contacts(
+    user: User,
+    session: AsyncSession,
     first_name: str | None = None,
     last_name: str | None = None,
     email: str | None = None,
+    
 ) -> list[Contact]:
-    return contact_repo.get_all_contacts(session, first_name, last_name, email)
+    return await contact_repo.get_all_contacts(user, session, first_name, last_name, email)
 
 
-def get_upcoming_birthdays(session: Session, days: int = 7) -> list[Contact]:
+async def get_upcoming_birthdays(session: AsyncSession, days: int = 7, user: User = None) -> list[Contact]:
     today = date.today()
     end_date = today + timedelta(days=days)
-    contacts = contact_repo.get_all_contacts(session)
+    contacts = await contact_repo.get_all_contacts(user, session)
 
     upcoming_contacts: list[Contact] = []
     for contact in contacts:
@@ -32,18 +36,19 @@ def get_upcoming_birthdays(session: Session, days: int = 7) -> list[Contact]:
     return upcoming_contacts
 
 
-def create_contact(session: Session, contact: ContactRequest) -> Contact:
-    db_contact = contact_repo.get_contact_by_email(session, contact.email)
+async def create_contact(session: AsyncSession, contact: ContactRequest, user: User) -> Contact:
+    db_contact = await contact_repo.get_contact_by_email(session, contact.email, user)
     if db_contact:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Contact with email {contact.email} already exists.",
         )
-    return contact_repo.create_contact(session, contact)
+    
+    return await contact_repo.create_contact(session, contact, user)
 
 
-def get_contact_by_id(session: Session, contact_id: int) -> Contact | None:
-    db_contact = contact_repo.get_contact_by_id(session, contact_id)
+async def get_contact_by_id(session: AsyncSession, contact_id: int, user: User) -> Contact | None:
+    db_contact = await contact_repo.get_contact_by_id(session, contact_id, user)
     if not db_contact:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found"
@@ -51,14 +56,14 @@ def get_contact_by_id(session: Session, contact_id: int) -> Contact | None:
     return db_contact
 
 
-def update_contact(
-    session: Session, db_contact: Contact, contact: ContactUpdateRequest
+async def update_contact(
+    session: AsyncSession, db_contact: Contact, contact: ContactUpdateRequest, user: User
 ) -> Contact:
     update_data = contact.model_dump(exclude_unset=True)
 
-    if "email" in update_data and update_data["email"] != db_contact.email:
-        existing_contact = contact_repo.get_contact_by_email(
-            session, update_data["email"]
+    if "email" in update_data and update_data["email"] != db_contact.email and db_contact.user_id == user.id:
+        existing_contact = await contact_repo.get_contact_by_email(
+            session, update_data["email"], user
         )
         if existing_contact and existing_contact.id != db_contact.id:
             raise HTTPException(
@@ -69,13 +74,15 @@ def update_contact(
     for field, value in update_data.items():
         setattr(db_contact, field, value)
 
-    return contact_repo.update_contact(session, db_contact)
+    return await contact_repo.update_contact(session, db_contact, user)
 
 
-def delete_contact(session: Session, db_contact: Contact) -> None:
-    db_contact = contact_repo.get_contact_by_id(session, db_contact.id)
+async def delete_contact(session: AsyncSession, db_contact_id: int, user: User) -> None:
+    
+    db_contact = await contact_repo.get_contact_by_id(session, db_contact_id, user)
+   
     if not db_contact:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found"
         )
-    contact_repo.delete_contact(session, db_contact)
+    await contact_repo.delete_contact(session, db_contact_id, user)
