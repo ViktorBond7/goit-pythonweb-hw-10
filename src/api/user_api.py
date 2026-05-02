@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, status, Response, BackgroundTasks
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, status, Response, BackgroundTasks, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.limiter import limiter
@@ -8,6 +8,8 @@ from src.db.session import open_session
 from src.services import user_service
 from src.services.auth import Hash, get_current_user, get_email_from_token
 from src.services.email import send_email
+from src.services.upload_file import UploadFileService
+from src.config.app_config import settings
 
 
 router = APIRouter()
@@ -56,7 +58,7 @@ async def request_email(
     db: AsyncSession = Depends(open_session),
 ):
    
-    user = await user_service.get_user_by_email(db,body.email)
+    user = await user_service.get_user_by_email(db, body.email)
 
     if user.confirmed:
         return {"message": "Our email is already confirmed."}
@@ -73,6 +75,21 @@ async def request_email(
 async def refresh_access_token(refresh_token: str = Form(...), db: AsyncSession = Depends(open_session)):
     return await user_service.refresh_token_service(refresh_token)
 
+
+@router.patch("/avatar", response_model=UserRead)
+async def update_avatar_user(
+    file: UploadFile = File(),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(open_session),
+):
+    avatar_url = UploadFileService(
+        settings.CLD_NAME, settings.CLD_API_KEY, settings.CLD_API_SECRET
+    ).upload_file(file, user.username)
+
+    
+    user = await user_service.update_avatar_url(user.email, avatar_url, db)
+
+    return user
 
 
 

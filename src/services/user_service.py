@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
+from libgravatar import Gravatar
 # from sqlalchemy.orm import Session
 from sqlalchemy import select
 # from src.repositories import users
@@ -13,7 +14,14 @@ from src.schemas.user import TokenModel, UserCreate
 
 
 async def create_user(session: AsyncSession, user: UserCreate) -> User:
-    print("Checking for existing user with email1111")
+    avatar = None
+        
+    try:
+        g = Gravatar(user.email)
+        avatar = g.get_image()
+    except Exception as e:
+        print(e)
+    
     users_repo = users.UserRepository(session)
     db_user = await users_repo.get_user_by_email(user.email)
     
@@ -23,7 +31,7 @@ async def create_user(session: AsyncSession, user: UserCreate) -> User:
             status_code=status.HTTP_409_CONFLICT,
             detail=f"User with email {user.email} already exists.",
         )
-    return await users_repo.create_user(user, hashed_password=Hash().get_password_hash(user.password))
+    return await users_repo.create_user(user, hashed_password=Hash().get_password_hash(user.password), avatar=avatar)
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
@@ -78,3 +86,7 @@ async def refresh_token_service(refresh_token: str) -> TokenModel | None:
 async def confirmed_email(email: str, session: AsyncSession) -> None:
     users_repo = users.UserRepository(session)
     return await users_repo.confirmed_email(email)
+
+async def update_avatar_url(email: str, url: str, session: AsyncSession):
+    repository = users.UserRepository(session)
+    return await repository.update_avatar_url(email, url)
