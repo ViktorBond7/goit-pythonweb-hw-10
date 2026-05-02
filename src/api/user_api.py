@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, status, Response
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from src.limiter import limiter
 from src.models.user import User
 from src.schemas.user import TokenModel, UserRead, UserCreate
 from src.db.session import open_session
@@ -10,6 +11,7 @@ from src.services.auth import Hash, create_access_token, create_refresh_token, g
 
 
 router = APIRouter()
+
 
 @router.post("/register", response_model=UserRead)
 async def register_user(user: UserCreate, db: Session = Depends(open_session)):
@@ -24,9 +26,9 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Sessi
    
 
 
-
 @router.get("/me", response_model=UserRead)
-async def read_current_user(current_user: User = Depends(get_current_user)):
+@limiter.limit("5/minute")
+async def read_current_user(request: Request, current_user: User = Depends(get_current_user)):
     
     return UserRead.model_validate(current_user)
 

@@ -18,8 +18,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from src.config.app_config import DATABASE_CONNECT_URL as DB_URL
-
+# from src.config.app_config import DATABASE_CONNECT_URL as DB_URL
+from src.config.app_config import settings
 
 class DatabaseSessionManager:
     def __init__(self, url: str):
@@ -42,7 +42,7 @@ class DatabaseSessionManager:
             await session.close()
 
 
-sessionmanager = DatabaseSessionManager(DB_URL)
+sessionmanager = DatabaseSessionManager(settings.DATABASE_CONNECT_URL)
 
 
 async def open_session():

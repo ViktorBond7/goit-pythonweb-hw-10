@@ -11,8 +11,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
 from src.models.user import User
-from src.config import app_config as config
+# from src.config import app_config as config
 from src.db.session import open_session
+from src.config import app_config as config
 
 
 from pwdlib import PasswordHash
@@ -50,7 +51,7 @@ def create_access_token(data: dict)-> str:
     # header = {'alg': config.ALGORITHM}
     payload = {**data, "iat": issue_date_time, "exp": expire_date_time, "type": "access"}
    
-    res = jwt.encode(payload, config.SECRET_KEY, algorithm=config.ALGORITHM)
+    res = jwt.encode(payload, config.settings.SECRET_KEY, algorithm=config.settings.ALGORITHM)
     
     return res
 
@@ -59,7 +60,7 @@ def create_refresh_token(data: dict) -> str:
     issue_date_time = datetime.now(timezone.utc)
     expire_date_time = issue_date_time + timedelta(days=config.REFRESH_TOKEN_EXPIRE_DAYS)
     payload = {**data, "iat": issue_date_time, "exp": expire_date_time, "type": "refresh"}
-    return jwt.encode(payload, config.SECRET_KEY, algorithm=config.ALGORITHM)
+    return jwt.encode(payload, config.settings.SECRET_KEY, algorithm=config.settings.ALGORITHM)
 
 
 async def get_current_user(
@@ -75,7 +76,7 @@ async def get_current_user(
     try:
         # Decode JWT
         payload = jwt.decode(
-            token, config.SECRET_KEY, algorithms=[config.ALGORITHM]
+            token, config.settings.SECRET_KEY, algorithms=[config.settings.ALGORITHM]
         )
         
         email = payload["sub"]
@@ -124,7 +125,7 @@ async def get_current_user(
 def verify_refresh_token(token: str) -> Optional[str] | None:
     try:
         
-        payload = jwt.decode(token, config.SECRET_KEY, algorithms=[config.ALGORITHM])
+        payload = jwt.decode(token, config.settings.SECRET_KEY, algorithms=[config.settings.ALGORITHM])
         
         email = payload.get("sub")
         

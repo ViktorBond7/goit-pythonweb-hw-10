@@ -19,12 +19,11 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from src.db.base import Base
-from src.config.app_config import DATABASE_CONNECT_URL
+from src.config.app_config import settings
 import src.models  # noqa: F401
 
 target_metadata = Base.metadata
-config.set_main_option("sqlalchemy.url", DATABASE_CONNECT_URL)
-
+config.set_main_option("sqlalchemy.url", settings.DATABASE_CONNECT_URL)
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
