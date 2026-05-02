@@ -1,6 +1,5 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from requests import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 # from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -41,6 +40,12 @@ async def authenticate_user(session: AsyncSession, form_data: dict) -> TokenMode
     if not db_user or not Hash().verify_password(form_data.password, db_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
    
+    if not db_user.confirmed:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email not confirmed. Please check your email and confirm your email address.",
+        )
+
     access_token = create_access_token(data={"sub": db_user.email})
    
     refresh_token = create_refresh_token(data={"sub": db_user.email})
@@ -69,3 +74,7 @@ async def refresh_token_service(refresh_token: str) -> TokenModel | None:
         "refresh_token": new_refresh_token, 
         "token_type": "bearer"
     }
+
+async def confirmed_email(email: str, session: AsyncSession) -> None:
+    users_repo = users.UserRepository(session)
+    return await users_repo.confirmed_email(email)

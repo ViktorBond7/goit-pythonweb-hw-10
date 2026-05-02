@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String
+from sqlalchemy import Boolean, String
 
 # from src.models.contact import Contact
 from src.db.base import Base
@@ -18,6 +18,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     avatar: Mapped[str] = mapped_column(String, nullable=True)
+    confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
 
     contacts: Mapped[list["Contact"]] = relationship(
         "Contact", back_populates="user", cascade="all, delete-orphan"

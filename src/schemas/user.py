@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class UserCreate(BaseModel):
@@ -14,6 +14,7 @@ class UserRead(BaseModel):
     id: int
     username: str
     email: str
+    confirmed: bool
     avatar: str | None = None
 
 class TokenModel(BaseModel):
@@ -21,3 +22,5 @@ class TokenModel(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
 
+class RequestEmail(BaseModel):
+    email: EmailStr

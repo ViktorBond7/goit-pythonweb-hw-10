@@ -1,26 +1,28 @@
-from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, status, Response
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, status, Response, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.limiter import limiter
 from src.models.user import User
-from src.schemas.user import TokenModel, UserRead, UserCreate
+from src.schemas.user import TokenModel, UserRead, UserCreate, RequestEmail
 from src.db.session import open_session
 from src.services import user_service
-from src.services.auth import Hash, create_access_token, create_refresh_token, get_current_user, verify_refresh_token
-
+from src.services.auth import Hash, get_current_user, get_email_from_token
+from src.services.email import send_email
 
 
 router = APIRouter()
 
 
 @router.post("/register", response_model=UserRead)
-async def register_user(user: UserCreate, db: Session = Depends(open_session)):
+async def register_user(user: UserCreate, background_tasks: BackgroundTasks, request: Request, db: AsyncSession = Depends(open_session)):
     create_user = await user_service.create_user(db, user)
+    background_tasks.add_task(send_email, create_user.email, create_user.username, request.base_url)
+
     return UserRead.model_validate(create_user)
 
    
 @router.post("/login", response_model=TokenModel)
-async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(open_session)):
+async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(open_session)):
     return await user_service.authenticate_user(db, form_data)
  
    
@@ -33,9 +35,72 @@ async def read_current_user(request: Request, current_user: User = Depends(get_c
     return UserRead.model_validate(current_user)
 
 
+@router.get("/confirmed_email/{token}")
+async def confirmed_email(token: str, db: AsyncSession = Depends(open_session)):
+    email = await get_email_from_token(token)
+    user = await user_service.get_user_by_email(db, email)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error"
+        )
+    if user.confirmed:
+        return {"message": "Ваша електронна пошта вже підтверджена"}
+    await user_service.confirmed_email(db, email)
+    return {"message": "Електронну пошту підтверджено"}
+
+@router.post("/request_email")
+async def request_email(
+    body: RequestEmail,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    db: AsyncSession = Depends(open_session),
+):
+   
+    user = await user_service.get_user_by_email(db,body.email)
+
+    if user.confirmed:
+        return {"message": "Our email is already confirmed."}
+    if user:
+        background_tasks.add_task(
+            send_email, user.email, user.username, request.base_url
+        )
+    return {"message": "Check your email for confirmation."}
+
+
+
 
 @router.post("/refresh", response_model=TokenModel)
-async def refresh_access_token(refresh_token: str = Form(...), db: Session = Depends(open_session)):
+async def refresh_access_token(refresh_token: str = Form(...), db: AsyncSession = Depends(open_session)):
     return await user_service.refresh_token_service(refresh_token)
 
 
+
+
+
+
+# def run_migrations_online() -> None:
+#     """Run migrations in 'online' mode."""
+    
+#     # Отримуємо конфігурацію з alembic.ini
+#     configuration = config.get_section(config.config_ini_section)
+#     # Переконуємося, що беремо правильний URL
+#     url = get_url() # або configuration["sqlalchemy.url"]
+    
+#     # Створюємо асинхронний двигун
+#     connectable = create_async_engine(url)
+
+#     async def do_run_migrations():
+#         async with connectable.connect() as connection:
+#             await connection.run_sync(do_run_migrations_sync)
+
+#     def do_run_migrations_sync(connection):
+#         context.configure(
+#             connection=connection, 
+#             target_metadata=target_metadata
+#         )
+
+#         with context.begin_transaction():
+#             context.run_migrations()
+
+#     # Запускаємо асинхронний цикл
+#     asyncio.run(do_run_migrations())
