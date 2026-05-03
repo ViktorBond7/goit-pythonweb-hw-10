@@ -1,8 +1,8 @@
 from pydantic import EmailStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 15 * 60
-REFRESH_TOKEN_EXPIRE_DAYS = 7 * 24 * 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 origins = [
     "http://127.0.0.1:8000",

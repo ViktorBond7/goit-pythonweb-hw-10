@@ -73,7 +73,7 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    print("Token received in get_current_user87878787787878787:", token)
+
     try:
         # Decode JWT
         payload = jwt.decode(

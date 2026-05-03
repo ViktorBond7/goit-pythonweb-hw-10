@@ -26,7 +26,7 @@ from src.config.app_config import settings
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserRead)
+@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def register_user(
     user: UserCreate,
     background_tasks: BackgroundTasks,
@@ -72,7 +72,7 @@ async def confirmed_email(token: str, db: AsyncSession = Depends(open_session)):
     return {"message": "Електронну пошту підтверджено"}
 
 
-@router.post("/request_email")
+@router.post("/request_email", status_code=status.HTTP_200_OK)
 async def request_email(
     body: RequestEmail,
     background_tasks: BackgroundTasks,
@@ -91,7 +91,7 @@ async def request_email(
     return {"message": "Check your email for confirmation."}
 
 
-@router.post("/refresh", response_model=TokenModel)
+@router.post("/refresh", response_model=TokenModel, status_code=status.HTTP_200_OK)
 async def refresh_access_token(
     refresh_token: str = Form(...), db: AsyncSession = Depends(open_session)
 ):

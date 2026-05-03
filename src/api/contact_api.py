@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,7 +27,7 @@ async def get_all_or_search_contacts(
 
 
 # Create new contact
-@router.post("/contacts/", response_model=ContactResponse)
+@router.post("/contacts/", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
 async def create_contact(
     contact: ContactRequest,
     session: AsyncSession = Depends(open_session),
