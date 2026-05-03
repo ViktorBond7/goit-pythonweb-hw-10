@@ -33,6 +33,3 @@ class ContactResponse(BaseModel):
     phone_number: str
     birthday: date
     additional_data: str | None = None
-
-    # class Config:
-    #     orm_mode = True

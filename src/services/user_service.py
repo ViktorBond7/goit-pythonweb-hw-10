@@ -2,36 +2,39 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from libgravatar import Gravatar
-# from sqlalchemy.orm import Session
 from sqlalchemy import select
-# from src.repositories import users
+
 from src.repositories import users
-from src.services.auth import Hash, create_access_token, create_refresh_token, verify_refresh_token
+from src.services.auth import (
+    Hash,
+    create_access_token,
+    create_refresh_token,
+    verify_refresh_token,
+)
 from src.models.user import User
 from src.schemas.user import TokenModel, UserCreate
-# from src.repositories.users import UserRepository
-
 
 
 async def create_user(session: AsyncSession, user: UserCreate) -> User:
     avatar = None
-        
+
     try:
         g = Gravatar(user.email)
         avatar = g.get_image()
     except Exception as e:
         print(e)
-    
+
     users_repo = users.UserRepository(session)
     db_user = await users_repo.get_user_by_email(user.email)
-    
-    print(f"Checking for existing user with email {user.email}: {db_user}")
+
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"User with email {user.email} already exists.",
         )
-    return await users_repo.create_user(user, hashed_password=Hash().get_password_hash(user.password), avatar=avatar)
+    return await users_repo.create_user(
+        user, hashed_password=Hash().get_password_hash(user.password), avatar=avatar
+    )
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
@@ -39,15 +42,21 @@ async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
     return await users_repo.get_user_by_email(email)
 
 
-async def authenticate_user(session: AsyncSession, form_data: dict) -> TokenModel | None:
+async def authenticate_user(
+    session: AsyncSession, form_data: dict
+) -> TokenModel | None:
     db_user = await session.execute(
         select(User).filter(User.email == form_data.username)
     )
     db_user = db_user.scalar_one_or_none()
-    
-    if not db_user or not Hash().verify_password(form_data.password, db_user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
-   
+
+    if not db_user or not Hash().verify_password(
+        form_data.password, db_user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
+        )
+
     if not db_user.confirmed:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,37 +64,42 @@ async def authenticate_user(session: AsyncSession, form_data: dict) -> TokenMode
         )
 
     access_token = create_access_token(data={"sub": db_user.email})
-   
+
     refresh_token = create_refresh_token(data={"sub": db_user.email})
 
-    res= {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
-    
+    res = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
     return res
 
 
 async def refresh_token_service(refresh_token: str) -> TokenModel | None:
-    
+
     email = verify_refresh_token(refresh_token)
-    
+
     if not email:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Invalid or expired refresh token"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or expired refresh token",
         )
-    
-   
+
     access_token = create_access_token(data={"sub": email})
     new_refresh_token = create_refresh_token(data={"sub": email})
-    
+
     return {
-        "access_token": access_token, 
-        "refresh_token": new_refresh_token, 
-        "token_type": "bearer"
+        "access_token": access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer",
     }
+
 
 async def confirmed_email(email: str, session: AsyncSession) -> None:
     users_repo = users.UserRepository(session)
     return await users_repo.confirmed_email(email)
+
 
 async def update_avatar_url(email: str, url: str, session: AsyncSession):
     repository = users.UserRepository(session)

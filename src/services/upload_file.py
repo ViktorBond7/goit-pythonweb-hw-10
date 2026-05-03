@@ -1,6 +1,7 @@
 import cloudinary
 import cloudinary.uploader
 
+
 class UploadFileService:
     def __init__(self, cloud_name, api_key, api_secret):
         self.cloud_name = cloud_name
